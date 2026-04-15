@@ -6,6 +6,8 @@ import '../providers/expense_provider.dart';
 import '../models/expense.dart';
 import 'add_expense_screen.dart';
 import 'expense_list_screen.dart';
+import 'statistics_screen.dart';
+import 'budget_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -16,6 +18,30 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Expense Tracker'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.account_balance_wallet),
+            tooltip: 'Budget',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const BudgetScreen()),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.bar_chart),
+            tooltip: 'Statistics',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const StatisticsScreen(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: Consumer<ExpenseProvider>(
         builder: (context, expenseProvider, child) {
@@ -49,9 +75,12 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTotalExpenseCard(BuildContext context, ExpenseProvider provider) {
+  Widget _buildTotalExpenseCard(
+    BuildContext context,
+    ExpenseProvider provider,
+  ) {
     final currencyFormat = NumberFormat.currency(symbol: '\$');
-    
+
     return Card(
       elevation: 4,
       child: Container(
@@ -91,11 +120,14 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBudgetProgressCard(BuildContext context, ExpenseProvider provider) {
+  Widget _buildBudgetProgressCard(
+    BuildContext context,
+    ExpenseProvider provider,
+  ) {
     final currencyFormat = NumberFormat.currency(symbol: '\$');
     final progress = provider.budgetProgress;
     final remaining = provider.remainingBudget;
-    
+
     Color progressColor;
     if (progress >= 1.0) {
       progressColor = Colors.red;
@@ -117,10 +149,7 @@ class HomeScreen extends StatelessWidget {
               children: [
                 const Text(
                   'Budget Progress',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 Text(
                   '${(progress * 100).toStringAsFixed(0)}%',
@@ -151,10 +180,7 @@ class HomeScreen extends StatelessWidget {
                   children: [
                     Text(
                       'Budget',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
                     ),
                     Text(
                       currencyFormat.format(provider.monthlyBudget),
@@ -170,10 +196,7 @@ class HomeScreen extends StatelessWidget {
                   children: [
                     Text(
                       'Remaining',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
                     ),
                     Text(
                       currencyFormat.format(remaining),
@@ -214,10 +237,7 @@ class HomeScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 Text(
                   'No expenses yet',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(color: Colors.grey[600], fontSize: 16),
                 ),
               ],
             ),
@@ -235,10 +255,7 @@ class HomeScreen extends StatelessWidget {
           children: [
             const Text(
               'Category-wise Summary',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             SizedBox(
@@ -268,7 +285,9 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  List<PieChartSectionData> _getPieChartSections(Map<ExpenseCategory, double> data) {
+  List<PieChartSectionData> _getPieChartSections(
+    Map<ExpenseCategory, double> data,
+  ) {
     return data.entries.map((entry) {
       return PieChartSectionData(
         value: entry.value,
@@ -312,21 +331,18 @@ class HomeScreen extends StatelessWidget {
         Container(
           width: 12,
           height: 12,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 4),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12),
-        ),
+        Text(label, style: const TextStyle(fontSize: 12)),
       ],
     );
   }
 
-  Widget _buildRecentTransactions(BuildContext context, ExpenseProvider provider) {
+  Widget _buildRecentTransactions(
+    BuildContext context,
+    ExpenseProvider provider,
+  ) {
     final recentExpenses = provider.recentExpenses;
 
     return Card(
@@ -341,10 +357,7 @@ class HomeScreen extends StatelessWidget {
               children: [
                 const Text(
                   'Recent Transactions',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 TextButton(
                   onPressed: () {
@@ -366,10 +379,7 @@ class HomeScreen extends StatelessWidget {
                 child: Center(
                   child: Text(
                     'No transactions yet',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
                   ),
                 ),
               )
@@ -409,17 +419,11 @@ class HomeScreen extends StatelessWidget {
       ),
       subtitle: Text(
         '${expense.category.displayName} • ${dateFormat.format(expense.date)}',
-        style: TextStyle(
-          color: Colors.grey[600],
-          fontSize: 12,
-        ),
+        style: TextStyle(color: Colors.grey[600], fontSize: 12),
       ),
       trailing: Text(
         currencyFormat.format(expense.amount),
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 16,
-        ),
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
       ),
     );
   }
