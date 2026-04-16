@@ -19,7 +19,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final _titleController = TextEditingController();
   final _amountController = TextEditingController();
   final _noteController = TextEditingController();
-  
+
   ExpenseCategory _selectedCategory = ExpenseCategory.food;
   DateTime _selectedDate = DateTime.now();
 
@@ -57,10 +57,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     }
   }
 
-  void _saveExpense() {
+  Future<void> _saveExpense() async {
     if (_formKey.currentState!.validate()) {
       final expense = Expense(
-        id: widget.expense?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+        id:
+            widget.expense?.id ??
+            DateTime.now().millisecondsSinceEpoch.toString(),
         title: _titleController.text.trim(),
         amount: double.parse(_amountController.text),
         category: _selectedCategory,
@@ -69,20 +71,26 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       );
 
       final provider = Provider.of<ExpenseProvider>(context, listen: false);
-      
+
       if (widget.expense != null) {
-        provider.updateExpense(widget.expense!.id, expense);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Expense updated successfully')),
-        );
+        await provider.updateExpense(widget.expense!.id, expense);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Expense updated successfully')),
+          );
+        }
       } else {
-        provider.addExpense(expense);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Expense added successfully')),
-        );
+        await provider.addExpense(expense);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Expense added successfully')),
+          );
+        }
       }
 
-      Navigator.pop(context);
+      if (mounted) {
+        Navigator.pop(context);
+      }
     }
   }
 
@@ -126,7 +134,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.attach_money),
                 ),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
                 ],
@@ -213,7 +223,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 ),
                 child: Text(
                   isEditing ? 'Update Expense' : 'Save Expense',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],

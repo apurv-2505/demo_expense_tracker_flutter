@@ -3,11 +3,13 @@ import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import '../providers/expense_provider.dart';
+import '../providers/settings_provider.dart';
 import '../models/expense.dart';
 import 'add_expense_screen.dart';
 import 'expense_list_screen.dart';
 import 'statistics_screen.dart';
 import 'budget_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -41,22 +43,44 @@ class HomeScreen extends StatelessWidget {
               );
             },
           ),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: 'Settings',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+              );
+            },
+          ),
         ],
       ),
-      body: Consumer<ExpenseProvider>(
-        builder: (context, expenseProvider, child) {
+      body: Consumer2<ExpenseProvider, SettingsProvider>(
+        builder: (context, expenseProvider, settingsProvider, child) {
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildTotalExpenseCard(context, expenseProvider),
+                _buildTotalExpenseCard(
+                  context,
+                  expenseProvider,
+                  settingsProvider,
+                ),
                 const SizedBox(height: 16),
-                _buildBudgetProgressCard(context, expenseProvider),
+                _buildBudgetProgressCard(
+                  context,
+                  expenseProvider,
+                  settingsProvider,
+                ),
                 const SizedBox(height: 16),
                 _buildCategoryChart(context, expenseProvider),
                 const SizedBox(height: 16),
-                _buildRecentTransactions(context, expenseProvider),
+                _buildRecentTransactions(
+                  context,
+                  expenseProvider,
+                  settingsProvider,
+                ),
               ],
             ),
           );
@@ -78,8 +102,11 @@ class HomeScreen extends StatelessWidget {
   Widget _buildTotalExpenseCard(
     BuildContext context,
     ExpenseProvider provider,
+    SettingsProvider settings,
   ) {
-    final currencyFormat = NumberFormat.currency(symbol: '\$');
+    final currencyFormat = NumberFormat.currency(
+      symbol: settings.currencySymbol,
+    );
 
     return Card(
       elevation: 4,
@@ -123,8 +150,11 @@ class HomeScreen extends StatelessWidget {
   Widget _buildBudgetProgressCard(
     BuildContext context,
     ExpenseProvider provider,
+    SettingsProvider settings,
   ) {
-    final currencyFormat = NumberFormat.currency(symbol: '\$');
+    final currencyFormat = NumberFormat.currency(
+      symbol: settings.currencySymbol,
+    );
     final progress = provider.budgetProgress;
     final remaining = provider.remainingBudget;
 
@@ -342,6 +372,7 @@ class HomeScreen extends StatelessWidget {
   Widget _buildRecentTransactions(
     BuildContext context,
     ExpenseProvider provider,
+    SettingsProvider settings,
   ) {
     final recentExpenses = provider.recentExpenses;
 
@@ -391,7 +422,7 @@ class HomeScreen extends StatelessWidget {
                 separatorBuilder: (context, index) => const Divider(),
                 itemBuilder: (context, index) {
                   final expense = recentExpenses[index];
-                  return _buildTransactionItem(expense);
+                  return _buildTransactionItem(expense, settings);
                 },
               ),
           ],
@@ -400,8 +431,10 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTransactionItem(Expense expense) {
-    final currencyFormat = NumberFormat.currency(symbol: '\$');
+  Widget _buildTransactionItem(Expense expense, SettingsProvider settings) {
+    final currencyFormat = NumberFormat.currency(
+      symbol: settings.currencySymbol,
+    );
     final dateFormat = DateFormat('MMM dd, yyyy');
 
     return ListTile(

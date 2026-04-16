@@ -1,16 +1,35 @@
 import 'package:flutter/foundation.dart';
 import '../models/expense.dart';
+import '../services/storage_service.dart';
 
 class ExpenseProvider with ChangeNotifier {
   final List<Expense> _expenses = [];
   double _monthlyBudget = 5000.0;
+  final StorageService _storageService = StorageService();
+  bool _isLoaded = false;
 
   List<Expense> get expenses => [..._expenses];
 
   double get monthlyBudget => _monthlyBudget;
 
-  void setMonthlyBudget(double budget) {
+  bool get isLoaded => _isLoaded;
+
+  Future<void> loadData() async {
+    if (_isLoaded) return;
+
+    _expenses.clear();
+    final loadedExpenses = await _storageService.loadExpenses();
+    _expenses.addAll(loadedExpenses);
+
+    _monthlyBudget = await _storageService.loadBudget();
+
+    _isLoaded = true;
+    notifyListeners();
+  }
+
+  Future<void> setMonthlyBudget(double budget) async {
     _monthlyBudget = budget;
+    await _storageService.saveBudget(budget);
     notifyListeners();
   }
 
@@ -24,9 +43,13 @@ class ExpenseProvider with ChangeNotifier {
     final nextMonth = DateTime(now.year, now.month + 1);
 
     return _expenses
-        .where((expense) =>
-            expense.date.isAfter(currentMonth.subtract(const Duration(days: 1))) &&
-            expense.date.isBefore(nextMonth))
+        .where(
+          (expense) =>
+              expense.date.isAfter(
+                currentMonth.subtract(const Duration(days: 1)),
+              ) &&
+              expense.date.isBefore(nextMonth),
+        )
         .fold(0.0, (sum, expense) => sum + expense.amount);
   }
 
@@ -47,9 +70,13 @@ class ExpenseProvider with ChangeNotifier {
     final currentMonth = DateTime(now.year, now.month);
     final nextMonth = DateTime(now.year, now.month + 1);
 
-    final currentMonthExpenses = _expenses.where((expense) =>
-        expense.date.isAfter(currentMonth.subtract(const Duration(days: 1))) &&
-        expense.date.isBefore(nextMonth));
+    final currentMonthExpenses = _expenses.where(
+      (expense) =>
+          expense.date.isAfter(
+            currentMonth.subtract(const Duration(days: 1)),
+          ) &&
+          expense.date.isBefore(nextMonth),
+    );
 
     final Map<ExpenseCategory, double> categoryTotals = {};
 
@@ -61,21 +88,35 @@ class ExpenseProvider with ChangeNotifier {
     return categoryTotals;
   }
 
-  void addExpense(Expense expense) {
+  Future<void> addExpense(Expense expense) async {
     _expenses.add(expense);
+    await _storageService.saveExpenses(_expenses);
     notifyListeners();
   }
 
-  void updateExpense(String id, Expense updatedExpense) {
+  Future<void> updateExpense(String id, Expense updatedExpense) async {
     final index = _expenses.indexWhere((expense) => expense.id == id);
     if (index != -1) {
       _expenses[index] = updatedExpense;
+      await _storageService.saveExpenses(_expenses);
       notifyListeners();
     }
   }
 
-  void deleteExpense(String id) {
+  Future<void> deleteExpense(String id) async {
     _expenses.removeWhere((expense) => expense.id == id);
+    await _storageService.saveExpenses(_expenses);
+    notifyListeners();
+  }
+
+  Future<String> exportData() async {
+    return await _storageService.exportData();
+  }
+
+  Future<void> resetAllData() async {
+    _expenses.clear();
+    _monthlyBudget = 5000.0;
+    await _storageService.clearAllData();
     notifyListeners();
   }
 
@@ -86,9 +127,11 @@ class ExpenseProvider with ChangeNotifier {
 
   List<Expense> getExpensesByDateRange(DateTime start, DateTime end) {
     return _expenses
-        .where((expense) =>
-            expense.date.isAfter(start.subtract(const Duration(days: 1))) &&
-            expense.date.isBefore(end.add(const Duration(days: 1))))
+        .where(
+          (expense) =>
+              expense.date.isAfter(start.subtract(const Duration(days: 1))) &&
+              expense.date.isBefore(end.add(const Duration(days: 1))),
+        )
         .toList();
   }
 }

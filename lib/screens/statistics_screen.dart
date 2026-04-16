@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import '../providers/expense_provider.dart';
+import '../providers/settings_provider.dart';
 import '../models/expense.dart';
 
 class StatisticsScreen extends StatefulWidget {
@@ -22,8 +23,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         title: const Text('Statistics & Reports'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
-      body: Consumer<ExpenseProvider>(
-        builder: (context, expenseProvider, child) {
+      body: Consumer2<ExpenseProvider, SettingsProvider>(
+        builder: (context, expenseProvider, settingsProvider, child) {
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -31,11 +32,11 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               children: [
                 _buildFilterSelector(),
                 const SizedBox(height: 16),
-                _buildSummaryCards(expenseProvider),
+                _buildSummaryCards(expenseProvider, settingsProvider),
                 const SizedBox(height: 24),
-                _buildCategoryPieChart(expenseProvider),
+                _buildCategoryPieChart(expenseProvider, settingsProvider),
                 const SizedBox(height: 24),
-                _buildMonthlyBarChart(expenseProvider),
+                _buildMonthlyBarChart(expenseProvider, settingsProvider),
               ],
             ),
           );
@@ -63,7 +64,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                       filter.displayName,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
                       ),
                     ),
                   ),
@@ -82,14 +85,22 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
-  Widget _buildSummaryCards(ExpenseProvider provider) {
+  Widget _buildSummaryCards(
+    ExpenseProvider provider,
+    SettingsProvider settings,
+  ) {
     final dateRange = _getDateRange();
-    final expenses = provider.getExpensesByDateRange(dateRange.start, dateRange.end);
+    final expenses = provider.getExpensesByDateRange(
+      dateRange.start,
+      dateRange.end,
+    );
     final total = expenses.fold(0.0, (sum, expense) => sum + expense.amount);
     final count = expenses.length;
     final average = count > 0 ? total / count : 0.0;
 
-    final currencyFormat = NumberFormat.currency(symbol: '\$');
+    final currencyFormat = NumberFormat.currency(
+      symbol: settings.currencySymbol,
+    );
 
     return Row(
       children: [
@@ -123,7 +134,12 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
-  Widget _buildSummaryCard(String title, String value, IconData icon, Color color) {
+  Widget _buildSummaryCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Card(
       elevation: 2,
       child: Padding(
@@ -134,19 +150,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             const SizedBox(height: 8),
             Text(
               title,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),
             Text(
               value,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
           ],
@@ -155,18 +165,27 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
-  Widget _buildCategoryPieChart(ExpenseProvider provider) {
+  Widget _buildCategoryPieChart(
+    ExpenseProvider provider,
+    SettingsProvider settings,
+  ) {
     final dateRange = _getDateRange();
-    final expenses = provider.getExpensesByDateRange(dateRange.start, dateRange.end);
-    
+    final expenses = provider.getExpensesByDateRange(
+      dateRange.start,
+      dateRange.end,
+    );
+
     final Map<ExpenseCategory, double> categoryTotals = {};
     for (var expense in expenses) {
-      categoryTotals[expense.category] = 
+      categoryTotals[expense.category] =
           (categoryTotals[expense.category] ?? 0) + expense.amount;
     }
 
     if (categoryTotals.isEmpty) {
-      return _buildEmptyChart('No expenses in this period', Icons.pie_chart_outline);
+      return _buildEmptyChart(
+        'No expenses in this period',
+        Icons.pie_chart_outline,
+      );
     }
 
     return Card(
@@ -178,10 +197,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           children: [
             const Text(
               'Category-wise Breakdown',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             SizedBox(
@@ -201,7 +217,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   ),
                   Expanded(
                     flex: 2,
-                    child: _buildPieChartLegend(categoryTotals),
+                    child: _buildPieChartLegend(categoryTotals, settings),
                   ),
                 ],
               ),
@@ -212,9 +228,11 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
-  List<PieChartSectionData> _getPieChartSections(Map<ExpenseCategory, double> data) {
+  List<PieChartSectionData> _getPieChartSections(
+    Map<ExpenseCategory, double> data,
+  ) {
     final total = data.values.fold(0.0, (sum, value) => sum + value);
-    
+
     return data.entries.map((entry) {
       final percentage = (entry.value / total * 100);
       return PieChartSectionData(
@@ -231,8 +249,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     }).toList();
   }
 
-  Widget _buildPieChartLegend(Map<ExpenseCategory, double> data) {
-    final currencyFormat = NumberFormat.currency(symbol: '\$');
+  Widget _buildPieChartLegend(
+    Map<ExpenseCategory, double> data,
+    SettingsProvider settings,
+  ) {
+    final currencyFormat = NumberFormat.currency(
+      symbol: settings.currencySymbol,
+    );
     final sortedEntries = data.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
@@ -266,10 +289,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                       ),
                       Text(
                         currencyFormat.format(entry.value),
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                       ),
                     ],
                   ),
@@ -282,7 +302,10 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
-  Widget _buildMonthlyBarChart(ExpenseProvider provider) {
+  Widget _buildMonthlyBarChart(
+    ExpenseProvider provider,
+    SettingsProvider settings,
+  ) {
     final barData = _getBarChartData(provider);
 
     if (barData.isEmpty) {
@@ -300,12 +323,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               _selectedFilter == TimeFilter.week
                   ? 'Daily Spending (This Week)'
                   : _selectedFilter == TimeFilter.month
-                      ? 'Weekly Spending (This Month)'
-                      : 'Monthly Spending (This Year)',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+                  ? 'Weekly Spending (This Month)'
+                  : 'Monthly Spending (This Year)',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             SizedBox(
@@ -318,7 +338,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     enabled: true,
                     touchTooltipData: BarTouchTooltipData(
                       getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                        final currencyFormat = NumberFormat.currency(symbol: '\$');
+                        final currencyFormat = NumberFormat.currency(
+                          symbol: settings.currencySymbol,
+                        );
                         return BarTooltipItem(
                           currencyFormat.format(rod.toY),
                           const TextStyle(
@@ -351,7 +373,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                         reservedSize: 40,
                         getTitlesWidget: (value, meta) {
                           return Text(
-                            '\$${value.toInt()}',
+                            '${settings.currencySymbol}${value.toInt()}',
                             style: const TextStyle(fontSize: 10),
                           );
                         },
@@ -408,10 +430,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               const SizedBox(height: 16),
               Text(
                 message,
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 16,
-                ),
+                style: TextStyle(color: Colors.grey[600], fontSize: 16),
               ),
             ],
           ),
@@ -423,7 +442,10 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   Map<int, double> _getBarChartData(ExpenseProvider provider) {
     final Map<int, double> data = {};
     final dateRange = _getDateRange();
-    final expenses = provider.getExpensesByDateRange(dateRange.start, dateRange.end);
+    final expenses = provider.getExpensesByDateRange(
+      dateRange.start,
+      dateRange.end,
+    );
 
     switch (_selectedFilter) {
       case TimeFilter.week:
@@ -470,19 +492,35 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         return 'W${index + 1}';
 
       case TimeFilter.year:
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-                       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const months = [
+          'Jan',
+          'Feb',
+          'Mar',
+          'Apr',
+          'May',
+          'Jun',
+          'Jul',
+          'Aug',
+          'Sep',
+          'Oct',
+          'Nov',
+          'Dec',
+        ];
         return months[index];
     }
   }
 
   DateRange _getDateRange() {
     final now = DateTime.now();
-    
+
     switch (_selectedFilter) {
       case TimeFilter.week:
         final weekStart = now.subtract(Duration(days: now.weekday - 1));
-        final weekStartDate = DateTime(weekStart.year, weekStart.month, weekStart.day);
+        final weekStartDate = DateTime(
+          weekStart.year,
+          weekStart.month,
+          weekStart.day,
+        );
         final weekEndDate = weekStartDate.add(const Duration(days: 7));
         return DateRange(weekStartDate, weekEndDate);
 
@@ -520,11 +558,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   }
 }
 
-enum TimeFilter {
-  week,
-  month,
-  year,
-}
+enum TimeFilter { week, month, year }
 
 extension TimeFilterExtension on TimeFilter {
   String get displayName {

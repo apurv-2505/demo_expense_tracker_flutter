@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/expense_provider.dart';
+import '../providers/settings_provider.dart';
 
 class BudgetScreen extends StatefulWidget {
   const BudgetScreen({super.key});
@@ -28,17 +29,19 @@ class _BudgetScreenState extends State<BudgetScreen> {
     super.dispose();
   }
 
-  void _saveBudget() {
+  Future<void> _saveBudget() async {
     final amount = double.tryParse(_budgetController.text);
     if (amount != null && amount > 0) {
       final provider = Provider.of<ExpenseProvider>(context, listen: false);
-      provider.setMonthlyBudget(amount);
+      await provider.setMonthlyBudget(amount);
       setState(() {
         _isEditing = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Budget updated successfully')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Budget updated successfully')),
+        );
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a valid amount')),
@@ -53,9 +56,11 @@ class _BudgetScreenState extends State<BudgetScreen> {
         title: const Text('Budget Management'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
-      body: Consumer<ExpenseProvider>(
-        builder: (context, expenseProvider, child) {
-          final currencyFormat = NumberFormat.currency(symbol: '\$');
+      body: Consumer2<ExpenseProvider, SettingsProvider>(
+        builder: (context, expenseProvider, settingsProvider, child) {
+          final currencyFormat = NumberFormat.currency(
+            symbol: settingsProvider.currencySymbol,
+          );
           final budget = expenseProvider.monthlyBudget;
           final spent = expenseProvider.currentMonthExpenses;
           final remaining = expenseProvider.remainingBudget;
@@ -138,10 +143,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           gradient: LinearGradient(
-            colors: [
-              cardColor,
-              cardColor.withOpacity(0.7),
-            ],
+            colors: [cardColor, cardColor.withOpacity(0.7)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -257,10 +259,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
               children: [
                 const Text(
                   'Set Monthly Budget',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 if (!_isEditing)
                   IconButton(
@@ -283,7 +282,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.attach_money),
                 ),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
                 ],
@@ -298,7 +299,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
                           context,
                           listen: false,
                         );
-                        _budgetController.text = provider.monthlyBudget.toStringAsFixed(0);
+                        _budgetController.text = provider.monthlyBudget
+                            .toStringAsFixed(0);
                         setState(() {
                           _isEditing = false;
                         });
@@ -332,7 +334,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
                     const Icon(Icons.account_balance_wallet, size: 32),
                     const SizedBox(width: 12),
                     Text(
-                      currencyFormat.format(double.parse(_budgetController.text)),
+                      currencyFormat.format(
+                        double.parse(_budgetController.text),
+                      ),
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -355,7 +359,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
     NumberFormat currencyFormat,
   ) {
     final spentPercentage = budget > 0 ? (spent / budget * 100) : 0.0;
-    final remainingPercentage = budget > 0 ? (remaining / budget * 100).clamp(0.0, 100.0) : 0.0;
+    final remainingPercentage = budget > 0
+        ? (remaining / budget * 100).clamp(0.0, 100.0)
+        : 0.0;
 
     return Card(
       elevation: 2,
@@ -366,10 +372,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
           children: [
             const Text(
               'Spending Breakdown',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             _buildBreakdownItem(
@@ -412,16 +415,10 @@ class _BudgetScreenState extends State<BudgetScreen> {
             Container(
               width: 12,
               height: 12,
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
             ),
             const SizedBox(width: 12),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 14),
-            ),
+            Text(label, style: const TextStyle(fontSize: 14)),
           ],
         ),
         Column(
@@ -429,17 +426,11 @@ class _BudgetScreenState extends State<BudgetScreen> {
           children: [
             Text(
               amount,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             Text(
               percentage,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
             ),
           ],
         ),
@@ -479,10 +470,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                     const SizedBox(height: 4),
                     Text(
                       'You\'re managing your budget well. Keep it up!',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.green[600],
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.green[600]),
                     ),
                   ],
                 ),
@@ -518,10 +506,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                     const SizedBox(height: 4),
                     Text(
                       'You\'ve used ${(progress * 100).toStringAsFixed(0)}% of your budget. Only ${currencyFormat.format(remaining)} remaining.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.orange[600],
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.orange[600]),
                     ),
                   ],
                 ),
@@ -556,10 +541,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                   const SizedBox(height: 4),
                   Text(
                     'You\'ve exceeded your budget by ${currencyFormat.format(remaining.abs())}. Consider reducing expenses.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.red[600],
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.red[600]),
                   ),
                 ],
               ),

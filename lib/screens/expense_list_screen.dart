@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/expense_provider.dart';
+import '../providers/settings_provider.dart';
 import '../models/expense.dart';
 import 'add_expense_screen.dart';
 
@@ -29,8 +30,8 @@ class _ExpenseListScreenState extends State<ExpenseListScreen> {
           ),
         ],
       ),
-      body: Consumer<ExpenseProvider>(
-        builder: (context, expenseProvider, child) {
+      body: Consumer2<ExpenseProvider, SettingsProvider>(
+        builder: (context, expenseProvider, settingsProvider, child) {
           final filteredExpenses = _getFilteredExpenses(expenseProvider);
 
           if (filteredExpenses.isEmpty) {
@@ -38,26 +39,16 @@ class _ExpenseListScreenState extends State<ExpenseListScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.receipt_long,
-                    size: 80,
-                    color: Colors.grey[400],
-                  ),
+                  Icon(Icons.receipt_long, size: 80, color: Colors.grey[400]),
                   const SizedBox(height: 16),
                   Text(
                     'No expenses found',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 18, color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Try adjusting your filters',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[500],
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey[500]),
                   ),
                 ],
               ),
@@ -74,7 +65,12 @@ class _ExpenseListScreenState extends State<ExpenseListScreen> {
                   itemCount: filteredExpenses.length,
                   itemBuilder: (context, index) {
                     final expense = filteredExpenses[index];
-                    return _buildExpenseItem(context, expense, expenseProvider);
+                    return _buildExpenseItem(
+                      context,
+                      expense,
+                      expenseProvider,
+                      settingsProvider,
+                    );
                   },
                 ),
               ),
@@ -100,25 +96,41 @@ class _ExpenseListScreenState extends State<ExpenseListScreen> {
         final today = DateTime(now.year, now.month, now.day);
         final tomorrow = today.add(const Duration(days: 1));
         expenses = expenses
-            .where((expense) =>
-                expense.date.isAfter(today.subtract(const Duration(days: 1))) &&
-                expense.date.isBefore(tomorrow))
+            .where(
+              (expense) =>
+                  expense.date.isAfter(
+                    today.subtract(const Duration(days: 1)),
+                  ) &&
+                  expense.date.isBefore(tomorrow),
+            )
             .toList();
         break;
       case DateFilter.thisWeek:
         final weekStart = now.subtract(Duration(days: now.weekday - 1));
-        final weekStartDate = DateTime(weekStart.year, weekStart.month, weekStart.day);
+        final weekStartDate = DateTime(
+          weekStart.year,
+          weekStart.month,
+          weekStart.day,
+        );
         expenses = expenses
-            .where((expense) => expense.date.isAfter(weekStartDate.subtract(const Duration(days: 1))))
+            .where(
+              (expense) => expense.date.isAfter(
+                weekStartDate.subtract(const Duration(days: 1)),
+              ),
+            )
             .toList();
         break;
       case DateFilter.thisMonth:
         final monthStart = DateTime(now.year, now.month);
         final monthEnd = DateTime(now.year, now.month + 1);
         expenses = expenses
-            .where((expense) =>
-                expense.date.isAfter(monthStart.subtract(const Duration(days: 1))) &&
-                expense.date.isBefore(monthEnd))
+            .where(
+              (expense) =>
+                  expense.date.isAfter(
+                    monthStart.subtract(const Duration(days: 1)),
+                  ) &&
+                  expense.date.isBefore(monthEnd),
+            )
             .toList();
         break;
       case DateFilter.all:
@@ -172,8 +184,11 @@ class _ExpenseListScreenState extends State<ExpenseListScreen> {
     BuildContext context,
     Expense expense,
     ExpenseProvider provider,
+    SettingsProvider settings,
   ) {
-    final currencyFormat = NumberFormat.currency(symbol: '\$');
+    final currencyFormat = NumberFormat.currency(
+      symbol: settings.currencySymbol,
+    );
     final dateFormat = DateFormat('MMM dd, yyyy');
 
     return Dismissible(
@@ -187,11 +202,7 @@ class _ExpenseListScreenState extends State<ExpenseListScreen> {
           color: Colors.red,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const Icon(
-          Icons.delete,
-          color: Colors.white,
-          size: 32,
-        ),
+        child: const Icon(Icons.delete, color: Colors.white, size: 32),
       ),
       confirmDismiss: (direction) async {
         return await showDialog(
@@ -199,7 +210,9 @@ class _ExpenseListScreenState extends State<ExpenseListScreen> {
           builder: (BuildContext context) {
             return AlertDialog(
               title: const Text('Delete Expense'),
-              content: const Text('Are you sure you want to delete this expense?'),
+              content: const Text(
+                'Are you sure you want to delete this expense?',
+              ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(false),
@@ -215,27 +228,34 @@ class _ExpenseListScreenState extends State<ExpenseListScreen> {
           },
         );
       },
-      onDismissed: (direction) {
-        provider.deleteExpense(expense.id);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${expense.title} deleted'),
-            action: SnackBarAction(
-              label: 'UNDO',
-              onPressed: () {
-                provider.addExpense(expense);
-              },
+      onDismissed: (direction) async {
+        await provider.deleteExpense(expense.id);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${expense.title} deleted'),
+              action: SnackBarAction(
+                label: 'UNDO',
+                onPressed: () async {
+                  await provider.addExpense(expense);
+                },
+              ),
             ),
-          ),
-        );
+          );
+        }
       },
       child: Card(
         margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
         elevation: 2,
         child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 8,
+          ),
           leading: CircleAvatar(
-            backgroundColor: _getCategoryColor(expense.category).withOpacity(0.2),
+            backgroundColor: _getCategoryColor(
+              expense.category,
+            ).withOpacity(0.2),
             child: Icon(
               _getCategoryIcon(expense.category),
               color: _getCategoryColor(expense.category),
@@ -243,10 +263,7 @@ class _ExpenseListScreenState extends State<ExpenseListScreen> {
           ),
           title: Text(
             expense.title,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 16,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
           ),
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -254,32 +271,18 @@ class _ExpenseListScreenState extends State<ExpenseListScreen> {
               const SizedBox(height: 4),
               Row(
                 children: [
-                  Icon(
-                    Icons.category,
-                    size: 14,
-                    color: Colors.grey[600],
-                  ),
+                  Icon(Icons.category, size: 14, color: Colors.grey[600]),
                   const SizedBox(width: 4),
                   Text(
                     expense.category.displayName,
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
                   ),
                   const SizedBox(width: 12),
-                  Icon(
-                    Icons.calendar_today,
-                    size: 14,
-                    color: Colors.grey[600],
-                  ),
+                  Icon(Icons.calendar_today, size: 14, color: Colors.grey[600]),
                   const SizedBox(width: 4),
                   Text(
                     dateFormat.format(expense.date),
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
                   ),
                 ],
               ),
@@ -461,12 +464,7 @@ class _ExpenseListScreenState extends State<ExpenseListScreen> {
   }
 }
 
-enum DateFilter {
-  all,
-  today,
-  thisWeek,
-  thisMonth,
-}
+enum DateFilter { all, today, thisWeek, thisMonth }
 
 extension DateFilterExtension on DateFilter {
   String get displayName {
