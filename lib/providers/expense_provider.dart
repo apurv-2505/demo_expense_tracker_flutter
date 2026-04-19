@@ -1,12 +1,17 @@
 import 'package:flutter/foundation.dart';
 import '../models/expense.dart';
 import '../services/storage_service.dart';
+import '../services/expense_service.dart';
+import '../services/budget_service.dart';
 
 class ExpenseProvider with ChangeNotifier {
   final List<Expense> _expenses = [];
   double _monthlyBudget = 5000.0;
   final StorageService _storageService = StorageService();
+  final ExpenseService _expenseService = ExpenseService();
+  final BudgetService _budgetService = BudgetService();
   bool _isLoaded = false;
+  bool _useBackend = false;
 
   List<Expense> get expenses => [..._expenses];
 
@@ -18,10 +23,22 @@ class ExpenseProvider with ChangeNotifier {
     if (_isLoaded) return;
 
     _expenses.clear();
-    final loadedExpenses = await _storageService.loadExpenses();
-    _expenses.addAll(loadedExpenses);
 
-    _monthlyBudget = await _storageService.loadBudget();
+    if (_useBackend) {
+      try {
+        final backendExpenses = await _expenseService.getExpenses();
+        _expenses.addAll(backendExpenses);
+        _monthlyBudget = await _budgetService.getBudget();
+      } catch (e) {
+        final loadedExpenses = await _storageService.loadExpenses();
+        _expenses.addAll(loadedExpenses);
+        _monthlyBudget = await _storageService.loadBudget();
+      }
+    } else {
+      final loadedExpenses = await _storageService.loadExpenses();
+      _expenses.addAll(loadedExpenses);
+      _monthlyBudget = await _storageService.loadBudget();
+    }
 
     _isLoaded = true;
     notifyListeners();
@@ -29,7 +46,17 @@ class ExpenseProvider with ChangeNotifier {
 
   Future<void> setMonthlyBudget(double budget) async {
     _monthlyBudget = budget;
-    await _storageService.saveBudget(budget);
+
+    if (_useBackend) {
+      try {
+        await _budgetService.updateBudget(budget);
+      } catch (e) {
+        await _storageService.saveBudget(budget);
+      }
+    } else {
+      await _storageService.saveBudget(budget);
+    }
+
     notifyListeners();
   }
 
@@ -90,7 +117,17 @@ class ExpenseProvider with ChangeNotifier {
 
   Future<void> addExpense(Expense expense) async {
     _expenses.add(expense);
-    await _storageService.saveExpenses(_expenses);
+
+    if (_useBackend) {
+      try {
+        await _expenseService.addExpense(expense);
+      } catch (e) {
+        await _storageService.saveExpenses(_expenses);
+      }
+    } else {
+      await _storageService.saveExpenses(_expenses);
+    }
+
     notifyListeners();
   }
 
@@ -98,14 +135,34 @@ class ExpenseProvider with ChangeNotifier {
     final index = _expenses.indexWhere((expense) => expense.id == id);
     if (index != -1) {
       _expenses[index] = updatedExpense;
-      await _storageService.saveExpenses(_expenses);
+
+      if (_useBackend) {
+        try {
+          await _expenseService.updateExpense(id, updatedExpense);
+        } catch (e) {
+          await _storageService.saveExpenses(_expenses);
+        }
+      } else {
+        await _storageService.saveExpenses(_expenses);
+      }
+
       notifyListeners();
     }
   }
 
   Future<void> deleteExpense(String id) async {
     _expenses.removeWhere((expense) => expense.id == id);
-    await _storageService.saveExpenses(_expenses);
+
+    if (_useBackend) {
+      try {
+        await _expenseService.deleteExpense(id);
+      } catch (e) {
+        await _storageService.saveExpenses(_expenses);
+      }
+    } else {
+      await _storageService.saveExpenses(_expenses);
+    }
+
     notifyListeners();
   }
 
@@ -116,7 +173,18 @@ class ExpenseProvider with ChangeNotifier {
   Future<void> resetAllData() async {
     _expenses.clear();
     _monthlyBudget = 5000.0;
-    await _storageService.clearAllData();
+
+    if (_useBackend) {
+      try {
+        await _expenseService.deleteAllExpenses();
+        await _budgetService.updateBudget(5000.0);
+      } catch (e) {
+        await _storageService.clearAllData();
+      }
+    } else {
+      await _storageService.clearAllData();
+    }
+
     notifyListeners();
   }
 
