@@ -9,7 +9,6 @@ import 'add_expense_screen.dart';
 import 'expense_list_screen.dart';
 import 'statistics_screen.dart';
 import 'budget_screen.dart';
-import 'settings_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -40,16 +39,6 @@ class HomeScreen extends StatelessWidget {
                 MaterialPageRoute(
                   builder: (context) => const StatisticsScreen(),
                 ),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            tooltip: 'Settings',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SettingsScreen()),
               );
             },
           ),

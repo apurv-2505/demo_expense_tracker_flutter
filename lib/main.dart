@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/expense_provider.dart';
 import 'providers/settings_provider.dart';
-import 'screens/home_screen.dart';
+import 'providers/goals_provider.dart';
+import 'screens/main_navigation_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,6 +22,9 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (context) => SettingsProvider()..loadSettings(),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => GoalsProvider()..loadGoals(),
         ),
       ],
       child: Consumer<SettingsProvider>(
@@ -42,7 +46,7 @@ class MyApp extends StatelessWidget {
               useMaterial3: true,
               brightness: Brightness.dark,
             ),
-            home: const HomeScreen(),
+            home: const MainNavigationScreen(),
           );
         },
       ),
